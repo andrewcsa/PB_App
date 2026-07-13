@@ -25,7 +25,7 @@
     branch: 'main',
     // Personal access token (fine-grained or classic) with Contents read/write
     // access to the target repo. Do NOT commit a real token to a public repo.
-    token: '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'
+    token: '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'
   };
 
   // sha of the last-loaded file, required by GitHub's API to update (not create) a file
