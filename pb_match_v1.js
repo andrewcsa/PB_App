@@ -17,6 +17,7 @@
    *     GITHUB CONFIG
    *     Fill these in by hand — see comments below.
    *  --------------------------------------------------------- */
+  require('dotenv').config();
   const GITHUB_CONFIG = {
     // Full GitHub Contents API endpoint for the CSV file, e.g.:
     // 'https://api.github.com/repos/OWNER/REPO/contents/PATH/PB_Playerlist.csv'
@@ -25,7 +26,8 @@
     branch: 'main',
     // Personal access token (fine-grained or classic) with Contents read/write
     // access to the target repo. Do NOT commit a real token to a public repo.
-    token: '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'
+    const token = process.env.GITHUB_TOKEN; 
+    //token: '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'
   };
 
   // sha of the last-loaded file, required by GitHub's API to update (not create) a file
