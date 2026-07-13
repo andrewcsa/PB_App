@@ -340,8 +340,8 @@
   }
 
   /* ---------------------------------------------------------
-     MATCHMAKING ALGORITHM
-  --------------------------------------------------------- */
+   *     MATCHMAKING ALGORITHM
+   *  --------------------------------------------------------- */
   // Pick `count` players from pool, prioritizing those with fewer games played.
   // Ties are broken randomly.
   function weightedPick(pool, count){
@@ -371,13 +371,12 @@
     return arr;
   }
 
-  function currentPriorityLevel(){
-    return (round % 2 === 1) ? 'Beginner' : 'Intermediate';
-  }
-
   // Returns { selected: [players...], shortfall: bool }
   function generateNextMatch(){
-    const priority = currentPriorityLevel();
+    if(matchMode === 'mix'){
+      return generateMixMatch();
+    }
+    const priority = currentPriorityLevel(); // 'Beginner' or 'Intermediate', driven by matchMode
     const pool = players.filter(p => p.present);
     const primary = pool.filter(p => p.level === priority);
     const secondary = pool.filter(p => p.level !== priority);
@@ -389,6 +388,30 @@
       selected = selected.concat(fill);
     }
     return { selected, priority, shortfall: selected.length < 4 };
+  }
+
+  // Mix mode: pick 2 Beginner + 2 Intermediate players (each group weighted by lowest
+  // gamesPlayed first). If one group falls short of 2, fill the remainder from whichever
+  // present players haven't already been selected (weighted by lowest gamesPlayed).
+  function generateMixMatch(){
+    const pool = players.filter(p => p.present);
+    const beginners = pool.filter(p => p.level === 'Beginner');
+    const intermediates = pool.filter(p => p.level === 'Intermediate');
+
+    const selectedBeginners = weightedPick(beginners, 2);
+    const selectedIntermediates = weightedPick(intermediates, 2);
+    let selected = selectedBeginners.concat(selectedIntermediates);
+
+    let shortfall = false;
+    if(selected.length < 4){
+      shortfall = true;
+      const need = 4 - selected.length;
+      const usedIds = new Set(selected.map(p => p.id));
+      const remaining = pool.filter(p => !usedIds.has(p.id));
+      const fill = weightedPick(remaining, need);
+      selected = selected.concat(fill);
+    }
+    return { selected, priority: 'Mix', shortfall };
   }
 
   /* ---------------------------------------------------------
@@ -408,133 +431,213 @@
     matchStatusEl.innerHTML = msg ? '<div class="status-msg '+(type||'')+'">'+msg+'</div>' : '';
   }
 
-  function formatTime(sec){
-    sec = Math.max(0, Math.round(sec));
-    const m = Math.floor(sec/60);
-    const s = sec % 60;
-    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  }
+  /* ---------------------------------------------------------
+   *     PRIORITY MODE SELECTOR (Beginner / Intermediate / Mix)
+   *  --------------------------------------------------------- */
+  let matchMode = 'beginner'; // 'beginner' | 'intermediate' | 'mix'
 
-  function updatePriorityBanner(){
-    const p = currentPriorityLevel();
-    const el = document.getElementById('priorityValue');
-    el.textContent = p;
-    el.className = 'value ' + p.toLowerCase();
-    document.getElementById('roundValue').textContent = round;
-  }
+  const priorityModeWrap = document.createElement('div');
+  priorityModeWrap.id = 'priorityModeWrap';
+  priorityModeWrap.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;';
+  priorityModeWrap.innerHTML = `
+  <button type="button" class="mode-btn" data-mode="beginner">Beginner</button>
+  <button type="button" class="mode-btn" data-mode="intermediate">Intermediate</button>
+  <button type="button" class="mode-btn" data-mode="mix">Mix</button>
+  `;
+  btnStart.parentNode.insertBefore(priorityModeWrap, btnStart);
 
-  function renderTimer(){
-    timerDisplay.textContent = formatTime(timeRemaining);
-    const total = (parseFloat(durationInput.value)||10)*60;
-    timerDisplay.classList.remove('warning','done');
-    if(timeRemaining <= 0){
-      timerDisplay.classList.add('done');
-    } else if(timeRemaining <= Math.min(30, total*0.15)){
-      timerDisplay.classList.add('warning');
+  const modeBtnStyleEl = document.createElement('style');
+  modeBtnStyleEl.textContent = `
+  .mode-btn{padding:8px 16px;border-radius:8px;border:2px solid #d0d5dd;background:#fff;
+    font-weight:700;cursor:pointer;color:#344054;font-size:14px;}
+    .mode-btn.active{background:#2563eb;border-color:#2563eb;color:#fff;}
+    `;
+    document.head.appendChild(modeBtnStyleEl);
+
+    function setMatchMode(mode){
+      matchMode = mode;
+      priorityModeWrap.querySelectorAll('.mode-btn').forEach(b=>{
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+      updatePriorityBanner();
+      // Selecting a mode loads/refreshes the match list on the court right away.
+      // Games only start counting once the Start button is actually pressed.
+      if(matchState === 'idle' || matchState === 'done'){
+        loadMatchPreview();
+      }
     }
-  }
 
-  function renderCourt(){
-    if(!currentMatchPlayers.length){
-      courtEmpty.style.display='block';
-      courtPlayersEl.style.display='none';
-      return;
-    }
-    courtEmpty.style.display='none';
-    courtPlayersEl.style.display='grid';
-    courtPlayersEl.innerHTML = currentMatchPlayers.map(id => {
-      const p = players.find(x=>x.id===id);
-      if(!p) return '';
-      return `<div class="court-player">
-        <div class="pname">${escapeHtml(p.name)}</div>
-        <span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span>
-      </div>`;
-    }).join('');
-  }
-
-  function updateControlButtons(){
-    btnStart.disabled = (matchState === 'running');
-    btnPause.disabled = (matchState !== 'running');
-    btnStop.disabled = (matchState === 'idle');
-    btnStart.textContent = (matchState === 'paused') ? 'Resume' : (matchState === 'done' ? 'Next Match' : 'Start');
-  }
-
-  function tick(){
-    timeRemaining -= 1;
-    if(timeRemaining <= 0){
-      timeRemaining = 0;
-      clearInterval(timerInterval);
-      timerInterval = null;
-      matchState = 'done';
-      matchStateLabel.textContent = "Time's up!";
-      if(navigator.vibrate) navigator.vibrate([200,100,200]);
-      updateControlButtons();
-    }
-    renderTimer();
-  }
-
-  btnStart.addEventListener('click', () => {
-    const pool = players.filter(p=>p.present);
-    if(pool.length < 4){
-      setMatchStatus('Need at least 4 present players to start a match.', 'error');
-      return;
-    }
-    if(matchState === 'idle' || matchState === 'done'){
+    // Selects the next match's players (per the current mode) and shows them on the
+    // court WITHOUT starting the timer or incrementing anyone's gamesPlayed.
+    function loadMatchPreview(){
+      const pool = players.filter(p => p.present);
+      if(pool.length < 4){
+        currentMatchPlayers = [];
+        renderCourt();
+        setMatchStatus('');
+        return;
+      }
       const { selected, priority, shortfall } = generateNextMatch();
-      currentMatchPlayers = selected.map(p=>p.id);
-      selected.forEach(p => p.gamesPlayed += 1);
-      const dur = Math.max(1, parseFloat(durationInput.value) || 10);
-      timeRemaining = dur*60;
-      matchState = 'running';
-      matchStateLabel.textContent = 'In Progress';
+      currentMatchPlayers = selected.map(p => p.id);
       renderCourt();
       if(shortfall){
-        setMatchStatus('Not enough ' + priority.toLowerCase() + ' players present — filled remaining spots from other level.', '');
+        const msg = (priority === 'Mix')
+        ? 'Not enough players in one level to make an even 2/2 mix — filled remaining spots from the other level.'
+        : 'Not enough ' + priority.toLowerCase() + ' players present — filled remaining spots from other level.';
+        setMatchStatus(msg, '');
       } else {
         setMatchStatus('');
       }
-      renderStats();
-    } else if(matchState === 'paused'){
-      matchState = 'running';
-      matchStateLabel.textContent = 'In Progress';
     }
-    timerInterval = setInterval(tick, 1000);
-    renderTimer();
-    updateControlButtons();
-  });
 
-  btnPause.addEventListener('click', () => {
-    if(matchState !== 'running') return;
-    clearInterval(timerInterval);
-    timerInterval = null;
-    matchState = 'paused';
-    matchStateLabel.textContent = 'Paused';
-    updateControlButtons();
-  });
+    priorityModeWrap.querySelectorAll('.mode-btn').forEach(b=>{
+      b.addEventListener('click', () => {
+        if(matchState === 'running' || matchState === 'paused') return; // don't allow switching mid-match
+        setMatchMode(b.dataset.mode);
+      });
+    });
 
-  btnStop.addEventListener('click', () => {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    matchState = 'idle';
-    matchStateLabel.textContent = 'Ready';
-    currentMatchPlayers = [];
-    round += 1;
-    const dur = Math.max(1, parseFloat(durationInput.value) || 10);
-    timeRemaining = dur*60;
-    renderTimer();
-    renderCourt();
-    updatePriorityBanner();
-    updateControlButtons();
-    setMatchStatus('');
-  });
 
-  durationInput.addEventListener('change', () => {
-    if(matchState === 'idle'){
-      const dur = Math.max(1, parseFloat(durationInput.value) || 10);
-      timeRemaining = dur*60;
+    function formatTime(sec){
+      sec = Math.max(0, Math.round(sec));
+      const m = Math.floor(sec/60);
+      const s = sec % 60;
+      return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+
+    function updatePriorityBanner(){
+      const p = currentPriorityLevel();
+      const el = document.getElementById('priorityValue');
+      el.textContent = p;
+      el.className = 'value ' + p.toLowerCase();
+      document.getElementById('roundValue').textContent = round;
+    }
+
+    function currentPriorityLevel(){
+      if(matchMode === 'mix') return 'Mix';
+      return (matchMode === 'intermediate') ? 'Intermediate' : 'Beginner';
+    }
+
+    function renderTimer(){
+      timerDisplay.textContent = formatTime(timeRemaining);
+      const total = (parseFloat(durationInput.value)||10)*60;
+      timerDisplay.classList.remove('warning','done');
+      if(timeRemaining <= 0){
+        timerDisplay.classList.add('done');
+      } else if(timeRemaining <= Math.min(30, total*0.15)){
+        timerDisplay.classList.add('warning');
+      }
+    }
+
+    function renderCourt(){
+      if(!currentMatchPlayers.length){
+        courtEmpty.style.display='block';
+        courtPlayersEl.style.display='none';
+        return;
+      }
+      courtEmpty.style.display='none';
+      courtPlayersEl.style.display='grid';
+      courtPlayersEl.innerHTML = currentMatchPlayers.map(id => {
+        const p = players.find(x=>x.id===id);
+        if(!p) return '';
+        return `<div class="court-player">
+        <div class="pname">${escapeHtml(p.name)}</div>
+        <span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span>
+        </div>`;
+      }).join('');
+    }
+
+    function updateControlButtons(){
+      btnStart.disabled = (matchState === 'running');
+      btnPause.disabled = (matchState !== 'running');
+      btnStop.disabled = (matchState === 'idle');
+      btnStart.textContent = (matchState === 'paused') ? 'Resume' : (matchState === 'done' ? 'Next Match' : 'Start');
+    }
+
+    function tick(){
+      timeRemaining -= 1;
+      if(timeRemaining <= 0){
+        timeRemaining = 0;
+        clearInterval(timerInterval);
+        timerInterval = null;
+        matchState = 'done';
+        matchStateLabel.textContent = "Time's up!";
+        round += 1;
+        updatePriorityBanner();
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+        updateControlButtons();
+      }
       renderTimer();
     }
-  });
+
+    btnStart.addEventListener('click', () => {
+      const pool = players.filter(p=>p.present);
+      if(pool.length < 4){
+        setMatchStatus('Need at least 4 present players to start a match.', 'error');
+        return;
+      }
+      if(matchState === 'idle' || matchState === 'done'){
+        // A match is "loaded" onto the court already if a mode button was pressed
+        // (or a previous preview is still sitting there from idle). Coming from
+        // 'done' the court is showing the match that JUST finished, so always
+        // pull a fresh set of players for the next one.
+        if(matchState === 'done' || !currentMatchPlayers.length){
+          loadMatchPreview();
+        }
+        if(currentMatchPlayers.length < 4){
+          setMatchStatus('Need at least 4 present players to start a match.', 'error');
+          return;
+        }
+        // Games only count now that the match is actually starting.
+        currentMatchPlayers.forEach(id => {
+          const p = players.find(x => x.id === id);
+          if(p) p.gamesPlayed += 1;
+        });
+          const dur = Math.max(0.1, parseFloat(durationInput.value) || 10);
+          timeRemaining = dur*60;
+          matchState = 'running';
+          matchStateLabel.textContent = 'In Progress';
+          renderCourt();
+          renderStats();
+      } else if(matchState === 'paused'){
+        matchState = 'running';
+        matchStateLabel.textContent = 'In Progress';
+      }
+      timerInterval = setInterval(tick, 1000);
+      renderTimer();
+      updateControlButtons();
+    });
+
+    btnPause.addEventListener('click', () => {
+      if(matchState !== 'running') return;
+      clearInterval(timerInterval);
+      timerInterval = null;
+      matchState = 'paused';
+      matchStateLabel.textContent = 'Paused';
+      updateControlButtons();
+    });
+
+    btnStop.addEventListener('click', () => {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      matchState = 'idle';
+      matchStateLabel.textContent = 'Ready';
+      round += 1;
+      const dur = Math.max(0.1, parseFloat(durationInput.value) || 10);
+      timeRemaining = dur*60;
+      renderTimer();
+      updatePriorityBanner();
+      updateControlButtons();
+      loadMatchPreview(); // show the next match's players right away (not started yet)
+    });
+
+    durationInput.addEventListener('change', () => {
+      if(matchState === 'idle'){
+        const dur = Math.max(0.1, parseFloat(durationInput.value) || 10);
+        timeRemaining = dur*60;
+        renderTimer();
+      }
+    });
 
   /* ---------------------------------------------------------
      STATISTICS TAB
@@ -611,5 +714,6 @@
   timeRemaining = (parseFloat(durationInput.value)||10)*60;
   renderTimer();
   updateControlButtons();
+  setMatchMode('beginner');
   renderAll();
 })();
