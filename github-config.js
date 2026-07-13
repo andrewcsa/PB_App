@@ -12,5 +12,5 @@
 
         // Personal access token (fine-grained recommended) with Contents: Read and write
         // access scoped to this one repo only. NEVER commit this file with a real token in it.
-        token: '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'
+        token: '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'
     };
