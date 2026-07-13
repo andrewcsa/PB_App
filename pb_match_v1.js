@@ -14,21 +14,14 @@
   let timerInterval = null;
 
   /* ---------------------------------------------------------
-     GITHUB CONFIG
-     IMPORTANT: GITHUB_CONFIG (with endpoint/branch/token) is NOT defined here.
-     It must be provided by a separate github-config.js file, loaded via a
-     <script> tag BEFORE this file, and excluded from git via .gitignore.
-     This keeps your token out of anything you commit/push.
-     Expected shape:
-       const GITHUB_CONFIG = {
-         endpoint: 'https://api.github.com/repos/OWNER/REPO/contents/PATH.csv',
-         branch: 'main',
-         token: 'your-token-here'
-       };
+     PROXY CONFIG
+     No token here — this is safe to commit. The Cloudflare Worker holds the
+     GitHub token as a server-side secret and does the authenticated calls.
+     Update this to your deployed Worker's URL.
   --------------------------------------------------------- */
-  if(typeof GITHUB_CONFIG === 'undefined'){
-    console.error('GITHUB_CONFIG is missing. Create github-config.js with your endpoint/branch/token and load it before this script.');
-  }
+  const PROXY_CONFIG = {
+    endpoint: 'pb-github-proxy.andrew-59d.workers.dev/playerlist'
+  };
 
   // sha of the last-loaded file, required by GitHub's API to update (not create) a file
   let githubFileSha = null;
@@ -124,7 +117,7 @@
   }
 
   /* ---------------------------------------------------------
-     GITHUB LOAD / SAVE (Contents API, token auth)
+     LOAD / SAVE VIA CLOUDFLARE WORKER PROXY
   --------------------------------------------------------- */
   function utf8ToBase64(str){
     const bytes = new TextEncoder().encode(str);
@@ -140,15 +133,7 @@
     return new TextDecoder().decode(bytes);
   }
 
-  function githubHeaders(extra){
-    return Object.assign({
-      'Authorization': 'Bearer ' + GITHUB_CONFIG.token,
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28'
-    }, extra || {});
-  }
-
-  async function githubErrText(res){
+  async function proxyErrText(res){
     try{
       const data = await res.json();
       return data.message || res.statusText;
@@ -157,40 +142,34 @@
     }
   }
 
-  // Fetches the CSV file's text content from GitHub. Records its sha for later saves.
+  // Fetches the CSV file's text content via the Worker proxy. Records its sha for later saves.
   // Returns null (with githubFileSha reset) if the file doesn't exist yet (404).
   async function githubLoadCSV(){
-    const url = GITHUB_CONFIG.endpoint + (GITHUB_CONFIG.branch ? '?ref=' + encodeURIComponent(GITHUB_CONFIG.branch) : '');
-    const res = await fetch(url, { headers: githubHeaders() });
+    const res = await fetch(PROXY_CONFIG.endpoint);
     if(res.status === 404){
       githubFileSha = null;
       return null;
     }
     if(!res.ok){
-      throw new Error('GitHub load failed (' + res.status + '): ' + await githubErrText(res));
+      throw new Error('Load failed (' + res.status + '): ' + await proxyErrText(res));
     }
     const data = await res.json();
     githubFileSha = data.sha || null;
     return base64ToUtf8(data.content || '');
   }
 
-  // Writes CSV text to the GitHub file. Creates it if it doesn't exist yet,
-  // otherwise updates it using the sha recorded from the last load/save.
+  // Writes CSV text via the Worker proxy, which creates or updates the GitHub file.
   async function githubSaveCSV(text){
-    const body = {
-      message: 'Update PB player list (' + new Date().toISOString() + ')',
-      content: utf8ToBase64(text)
-    };
-    if(GITHUB_CONFIG.branch) body.branch = GITHUB_CONFIG.branch;
+    const body = { content: utf8ToBase64(text) };
     if(githubFileSha) body.sha = githubFileSha;
 
-    const res = await fetch(GITHUB_CONFIG.endpoint, {
+    const res = await fetch(PROXY_CONFIG.endpoint, {
       method: 'PUT',
-      headers: githubHeaders({'Content-Type': 'application/json'}),
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)
     });
     if(!res.ok){
-      throw new Error('GitHub save failed (' + res.status + '): ' + await githubErrText(res));
+      throw new Error('Save failed (' + res.status + '): ' + await proxyErrText(res));
     }
     const data = await res.json();
     githubFileSha = (data.content && data.content.sha) || githubFileSha;
@@ -206,10 +185,6 @@
   }
 
   document.getElementById('btnLoadCsv').addEventListener('click', async () => {
-    if(typeof GITHUB_CONFIG === 'undefined'){
-      setFileStatus('GITHUB_CONFIG is missing — create github-config.js with your endpoint/branch/token and load it before this script.', 'error');
-      return;
-    }
     setFileStatus('Loading player list from GitHub…', '');
     try{
       const text = await githubLoadCSV();
@@ -227,10 +202,6 @@
   });
 
   document.getElementById('btnSaveCsv').addEventListener('click', async () => {
-    if(typeof GITHUB_CONFIG === 'undefined'){
-      setFileStatus('GITHUB_CONFIG is missing — create github-config.js with your endpoint/branch/token and load it before this script.', 'error');
-      return;
-    }
     const text = playersToCSVText();
     setFileStatus('Saving player list to GitHub…', '');
     try{
@@ -634,7 +605,7 @@
   const fileHelperEl = document.getElementById('fileHelper');
   if(fileHelperEl){
     fileHelperEl.textContent =
-      'Load pulls the player list from GitHub, and Save writes it back using token authentication (configured in GITHUB_CONFIG at the top of the script).';
+      'Load pulls the player list from GitHub, and Save writes it back — both go through a Cloudflare Worker proxy (configured in PROXY_CONFIG) that keeps the GitHub token server-side.';
   }
 
   timeRemaining = (parseFloat(durationInput.value)||10)*60;
