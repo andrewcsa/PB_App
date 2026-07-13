@@ -220,19 +220,19 @@
   });
 
   /* ---------------------------------------------------------
-     ADD / EDIT / REMOVE PLAYER
-  --------------------------------------------------------- */
+   *     ADD / EDIT / REMOVE PLAYER
+   *  --------------------------------------------------------- */
   document.getElementById('btnAddPlayer').addEventListener('click', () => {
     const nameEl = document.getElementById('newName');
     const name = nameEl.value.trim();
     if(!name){ nameEl.focus(); return; }
     players.push({
       id: uid(),
-      name,
-      type: document.getElementById('newType').value,
-      level: document.getElementById('newLevel').value,
-      gamesPlayed: 0,
-      present: true
+                 name,
+                 type: document.getElementById('newType').value,
+                 level: document.getElementById('newLevel').value,
+                 gamesPlayed: 0,
+                 present: true
     });
     nameEl.value = '';
     renderAll();
@@ -260,8 +260,8 @@
   }
 
   /* ---------------------------------------------------------
-     RENDER: SETUP TAB
-  --------------------------------------------------------- */
+   *     RENDER: SETUP TAB
+   *  --------------------------------------------------------- */
   function renderPlayerTable(editingId){
     const tbody = document.getElementById('playerTableBody');
     const empty = document.getElementById('playerEmptyState');
@@ -277,37 +277,37 @@
       if(editingId === p.id){
         tr.classList.add('edit-inline');
         tr.innerHTML = `
-          <td class="seq">${idx+1}</td>
-          <td><input type="text" class="edit-name" value="${escapeHtml(p.name)}"></td>
-          <td>
-            <select class="edit-type">
-              <option ${p.type==='HCA'?'selected':''}>HCA</option>
-              <option ${p.type==='Visitor'?'selected':''}>Visitor</option>
-            </select>
-          </td>
-          <td>
-            <select class="edit-level">
-              <option ${p.level==='Beginner'?'selected':''}>Beginner</option>
-              <option ${p.level==='Intermediate'?'selected':''}>Intermediate</option>
-            </select>
-          </td>
-          <td style="text-align:center;">—</td>
-          <td class="row-actions">
-            <button class="icon-btn" data-action="save" title="Save">✓</button>
-            <button class="icon-btn" data-action="cancel" title="Cancel">✕</button>
-          </td>
+        <td class="seq">${idx+1}</td>
+        <td><input type="text" class="edit-name" value="${escapeHtml(p.name)}"></td>
+        <td>
+        <select class="edit-type">
+        <option ${p.type==='HCA'?'selected':''}>HCA</option>
+        <option ${p.type==='Visitor'?'selected':''}>Visitor</option>
+        </select>
+        </td>
+        <td>
+        <select class="edit-level">
+        <option ${p.level==='Beginner'?'selected':''}>Beginner</option>
+        <option ${p.level==='Intermediate'?'selected':''}>Intermediate</option>
+        </select>
+        </td>
+        <td style="text-align:center;">—</td>
+        <td class="row-actions">
+        <button class="icon-btn" data-action="save" title="Save">✓</button>
+        <button class="icon-btn" data-action="cancel" title="Cancel">✕</button>
+        </td>
         `;
       } else {
         tr.innerHTML = `
-          <td class="seq">${idx+1}</td>
-          <td>${escapeHtml(p.name)}</td>
-          <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
-          <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
-          <td style="text-align:center;"><input type="checkbox" class="present-toggle" ${p.present?'checked':''}></td>
-          <td class="row-actions">
-            <button class="icon-btn" data-action="edit" title="Edit">✎</button>
-            <button class="icon-btn" data-action="delete" title="Remove">🗑</button>
-          </td>
+        <td class="seq">${idx+1}</td>
+        <td>${escapeHtml(p.name)}</td>
+        <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
+        <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
+        <td style="text-align:center;"><input type="checkbox" class="present-toggle" ${p.present?'checked':''}></td>
+        <td class="row-actions">
+        <button class="icon-btn" data-action="edit" title="Edit">✎</button>
+        <button class="icon-btn" data-action="delete" title="Remove">🗑</button>
+        </td>
         `;
       }
       tbody.appendChild(tr);
@@ -415,8 +415,8 @@
   }
 
   /* ---------------------------------------------------------
-     MATCH TAB RENDER / LOGIC
-  --------------------------------------------------------- */
+   *     MATCH TAB RENDER / LOGIC
+   *  --------------------------------------------------------- */
   const timerDisplay = document.getElementById('timerDisplay');
   const matchStateLabel = document.getElementById('matchStateLabel');
   const courtEmpty = document.getElementById('courtEmpty');
@@ -496,7 +496,6 @@
         setMatchMode(b.dataset.mode);
       });
     });
-
 
     function formatTime(sec){
       sec = Math.max(0, Math.round(sec));
@@ -639,62 +638,62 @@
       }
     });
 
-  /* ---------------------------------------------------------
-     STATISTICS TAB
-  --------------------------------------------------------- */
-  let statSort = {key:'seq', dir:1};
+    /* ---------------------------------------------------------
+     *     STATISTICS TAB
+     *  --------------------------------------------------------- */
+    let statSort = {key:'seq', dir:1};
 
-  function renderStats(){
-    document.getElementById('statTotalPlayers').textContent = players.length;
-    document.getElementById('statPresent').textContent = players.filter(p=>p.present).length;
-    const totalGameSlots = players.reduce((s,p)=>s+p.gamesPlayed,0);
-    document.getElementById('statTotalGames').textContent = Math.round(totalGameSlots/4 * 10)/10;
+    function renderStats(){
+      document.getElementById('statTotalPlayers').textContent = players.length;
+      document.getElementById('statPresent').textContent = players.filter(p=>p.present).length;
+      const totalGameSlots = players.reduce((s,p)=>s+p.gamesPlayed,0);
+      document.getElementById('statTotalGames').textContent = Math.round(totalGameSlots/4 * 10)/10;
 
-    const tbody = document.getElementById('statsTableBody');
-    const empty = document.getElementById('statsEmptyState');
-    tbody.innerHTML = '';
-    
-    // --- CHANGE MADE HERE: Added .filter(p => p.present) ---
-    let rows = players
+      const tbody = document.getElementById('statsTableBody');
+      const empty = document.getElementById('statsEmptyState');
+      tbody.innerHTML = '';
+
+      // --- CHANGE MADE HERE: Added .filter(p => p.present) ---
+      let rows = players
       .filter(p => p.present)
       .map((p,i)=>({...p, seq:i+1}));
-      
-    if(!rows.length){ empty.style.display='block'; return; }
-    empty.style.display='none';
 
-    rows.sort((a,b)=>{
-      let av=a[statSort.key], bv=b[statSort.key];
-      if(typeof av === 'string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); }
-      if(av<bv) return -1*statSort.dir;
-      if(av>bv) return 1*statSort.dir;
-      return 0;
-    });
+      if(!rows.length){ empty.style.display='block'; return; }
+      empty.style.display='none';
 
-    rows.forEach(p => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
+      rows.sort((a,b)=>{
+        let av=a[statSort.key], bv=b[statSort.key];
+        if(typeof av === 'string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); }
+        if(av<bv) return -1*statSort.dir;
+        if(av>bv) return 1*statSort.dir;
+        return 0;
+      });
+
+      rows.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
         <td class="seq">${p.seq}</td>
         <td>${escapeHtml(p.name)}</td>
         <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
         <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
         <td style="text-align:right;font-weight:800;">${p.gamesPlayed}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
+        `;
+        tbody.appendChild(tr);
+      });
+    }
 
-  /* ---------------------------------------------------------
-     TABS
-  --------------------------------------------------------- */
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
-      if(btn.dataset.tab === 'tab-stats') renderStats();
+    /* ---------------------------------------------------------
+     *     TABS
+     *  --------------------------------------------------------- */
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+        if(btn.dataset.tab === 'tab-stats') renderStats();
+      });
     });
-  });
 
   /* ---------------------------------------------------------
      INIT
