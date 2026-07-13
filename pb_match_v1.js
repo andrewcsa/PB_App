@@ -20,7 +20,7 @@
      Update this to your deployed Worker's URL.
   --------------------------------------------------------- */
   const PROXY_CONFIG = {
-    endpoint: 'pb-github-proxy.andrew-59d.workers.dev/playerlist'
+    endpoint: 'https://pb-github-proxy.andrew-59d.workers.dev/playerlist'
   };
 
   // sha of the last-loaded file, required by GitHub's API to update (not create) a file
