@@ -2,8 +2,8 @@
   "use strict";
 
   /* ---------------------------------------------------------
-   *     STATE
-   *  --------------------------------------------------------- */
+     STATE
+  --------------------------------------------------------- */
   let players = [];        // {id, name, type, level, gamesPlayed, present}
   let nextId = 1;
 
@@ -14,28 +14,28 @@
   let timerInterval = null;
 
   /* ---------------------------------------------------------
-   *     GITHUB CONFIG
-   *     Fill these in by hand — see comments below.
-   *  --------------------------------------------------------- */
-  require('dotenv').config();
-  const GITHUB_CONFIG = {
-    // Full GitHub Contents API endpoint for the CSV file, e.g.:
-    // 'https://api.github.com/repos/OWNER/REPO/contents/PATH/PB_Playerlist.csv'
-    endpoint: 'https://api.github.com/repos/andrewcsa/PB_App/contents/PB_Playerlist.csv',
-    // Branch to read from / write to. Leave '' to use the repo's default branch.
-    branch: 'main',
-    // Personal access token (fine-grained or classic) with Contents read/write
-    // access to the target repo. Do NOT commit a real token to a public repo.
-    const token = process.env.GITHUB_TOKEN; 
-    //token: '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'
-  };
+     GITHUB CONFIG
+     IMPORTANT: GITHUB_CONFIG (with endpoint/branch/token) is NOT defined here.
+     It must be provided by a separate github-config.js file, loaded via a
+     <script> tag BEFORE this file, and excluded from git via .gitignore.
+     This keeps your token out of anything you commit/push.
+     Expected shape:
+       const GITHUB_CONFIG = {
+         endpoint: 'https://api.github.com/repos/OWNER/REPO/contents/PATH.csv',
+         branch: 'main',
+         token: 'your-token-here'
+       };
+  --------------------------------------------------------- */
+  if(typeof GITHUB_CONFIG === 'undefined'){
+    console.error('GITHUB_CONFIG is missing. Create github-config.js with your endpoint/branch/token and load it before this script.');
+  }
 
   // sha of the last-loaded file, required by GitHub's API to update (not create) a file
   let githubFileSha = null;
 
   /* ---------------------------------------------------------
-   *     UTIL
-   *  --------------------------------------------------------- */
+     UTIL
+  --------------------------------------------------------- */
   function uid(){ return 'p' + (nextId++); }
 
   function csvEscape(val){
@@ -104,11 +104,11 @@
       if(!name) continue;
       loaded.push({
         id: uid(),
-                  name,
-                  type: normalizeType(r[typeIdx]),
-                  level: normalizeLevel(r[levelIdx]),
-                  gamesPlayed: gamesIdx>=0 ? (parseInt(r[gamesIdx],10)||0) : 0,
-                  present: false
+        name,
+        type: normalizeType(r[typeIdx]),
+        level: normalizeLevel(r[levelIdx]),
+        gamesPlayed: gamesIdx>=0 ? (parseInt(r[gamesIdx],10)||0) : 0,
+        present: false
       });
     }
     players = loaded;
@@ -124,8 +124,8 @@
   }
 
   /* ---------------------------------------------------------
-   *     GITHUB LOAD / SAVE (Contents API, token auth)
-   *  --------------------------------------------------------- */
+     GITHUB LOAD / SAVE (Contents API, token auth)
+  --------------------------------------------------------- */
   function utf8ToBase64(str){
     const bytes = new TextEncoder().encode(str);
     let binary = '';
@@ -179,7 +179,7 @@
   async function githubSaveCSV(text){
     const body = {
       message: 'Update PB player list (' + new Date().toISOString() + ')',
- content: utf8ToBase64(text)
+      content: utf8ToBase64(text)
     };
     if(GITHUB_CONFIG.branch) body.branch = GITHUB_CONFIG.branch;
     if(githubFileSha) body.sha = githubFileSha;
@@ -187,7 +187,7 @@
     const res = await fetch(GITHUB_CONFIG.endpoint, {
       method: 'PUT',
       headers: githubHeaders({'Content-Type': 'application/json'}),
-                            body: JSON.stringify(body)
+      body: JSON.stringify(body)
     });
     if(!res.ok){
       throw new Error('GitHub save failed (' + res.status + '): ' + await githubErrText(res));
@@ -198,14 +198,18 @@
   }
 
   /* ---------------------------------------------------------
-   *     FILE LOAD / SAVE
-   *  --------------------------------------------------------- */
+     FILE LOAD / SAVE
+  --------------------------------------------------------- */
   const fileStatusEl = document.getElementById('fileStatus');
   function setFileStatus(msg, type){
     fileStatusEl.innerHTML = '<div class="status-msg ' + (type||'') + '">' + msg + '</div>';
   }
 
   document.getElementById('btnLoadCsv').addEventListener('click', async () => {
+    if(typeof GITHUB_CONFIG === 'undefined'){
+      setFileStatus('GITHUB_CONFIG is missing — create github-config.js with your endpoint/branch/token and load it before this script.', 'error');
+      return;
+    }
     setFileStatus('Loading player list from GitHub…', '');
     try{
       const text = await githubLoadCSV();
@@ -223,6 +227,10 @@
   });
 
   document.getElementById('btnSaveCsv').addEventListener('click', async () => {
+    if(typeof GITHUB_CONFIG === 'undefined'){
+      setFileStatus('GITHUB_CONFIG is missing — create github-config.js with your endpoint/branch/token and load it before this script.', 'error');
+      return;
+    }
     const text = playersToCSVText();
     setFileStatus('Saving player list to GitHub…', '');
     try{
@@ -241,19 +249,19 @@
   });
 
   /* ---------------------------------------------------------
-   *     ADD / EDIT / REMOVE PLAYER
-   *  --------------------------------------------------------- */
+     ADD / EDIT / REMOVE PLAYER
+  --------------------------------------------------------- */
   document.getElementById('btnAddPlayer').addEventListener('click', () => {
     const nameEl = document.getElementById('newName');
     const name = nameEl.value.trim();
     if(!name){ nameEl.focus(); return; }
     players.push({
       id: uid(),
-                 name,
-                 type: document.getElementById('newType').value,
-                 level: document.getElementById('newLevel').value,
-                 gamesPlayed: 0,
-                 present: true
+      name,
+      type: document.getElementById('newType').value,
+      level: document.getElementById('newLevel').value,
+      gamesPlayed: 0,
+      present: true
     });
     nameEl.value = '';
     renderAll();
@@ -281,8 +289,8 @@
   }
 
   /* ---------------------------------------------------------
-   *     RENDER: SETUP TAB
-   *  --------------------------------------------------------- */
+     RENDER: SETUP TAB
+  --------------------------------------------------------- */
   function renderPlayerTable(editingId){
     const tbody = document.getElementById('playerTableBody');
     const empty = document.getElementById('playerEmptyState');
@@ -298,37 +306,37 @@
       if(editingId === p.id){
         tr.classList.add('edit-inline');
         tr.innerHTML = `
-        <td class="seq">${idx+1}</td>
-        <td><input type="text" class="edit-name" value="${escapeHtml(p.name)}"></td>
-        <td>
-        <select class="edit-type">
-        <option ${p.type==='HCA'?'selected':''}>HCA</option>
-        <option ${p.type==='Visitor'?'selected':''}>Visitor</option>
-        </select>
-        </td>
-        <td>
-        <select class="edit-level">
-        <option ${p.level==='Beginner'?'selected':''}>Beginner</option>
-        <option ${p.level==='Intermediate'?'selected':''}>Intermediate</option>
-        </select>
-        </td>
-        <td style="text-align:center;">—</td>
-        <td class="row-actions">
-        <button class="icon-btn" data-action="save" title="Save">✓</button>
-        <button class="icon-btn" data-action="cancel" title="Cancel">✕</button>
-        </td>
+          <td class="seq">${idx+1}</td>
+          <td><input type="text" class="edit-name" value="${escapeHtml(p.name)}"></td>
+          <td>
+            <select class="edit-type">
+              <option ${p.type==='HCA'?'selected':''}>HCA</option>
+              <option ${p.type==='Visitor'?'selected':''}>Visitor</option>
+            </select>
+          </td>
+          <td>
+            <select class="edit-level">
+              <option ${p.level==='Beginner'?'selected':''}>Beginner</option>
+              <option ${p.level==='Intermediate'?'selected':''}>Intermediate</option>
+            </select>
+          </td>
+          <td style="text-align:center;">—</td>
+          <td class="row-actions">
+            <button class="icon-btn" data-action="save" title="Save">✓</button>
+            <button class="icon-btn" data-action="cancel" title="Cancel">✕</button>
+          </td>
         `;
       } else {
         tr.innerHTML = `
-        <td class="seq">${idx+1}</td>
-        <td>${escapeHtml(p.name)}</td>
-        <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
-        <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
-        <td style="text-align:center;"><input type="checkbox" class="present-toggle" ${p.present?'checked':''}></td>
-        <td class="row-actions">
-        <button class="icon-btn" data-action="edit" title="Edit">✎</button>
-        <button class="icon-btn" data-action="delete" title="Remove">🗑</button>
-        </td>
+          <td class="seq">${idx+1}</td>
+          <td>${escapeHtml(p.name)}</td>
+          <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
+          <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
+          <td style="text-align:center;"><input type="checkbox" class="present-toggle" ${p.present?'checked':''}></td>
+          <td class="row-actions">
+            <button class="icon-btn" data-action="edit" title="Edit">✎</button>
+            <button class="icon-btn" data-action="delete" title="Remove">🗑</button>
+          </td>
         `;
       }
       tbody.appendChild(tr);
@@ -361,8 +369,8 @@
   }
 
   /* ---------------------------------------------------------
-   *     MATCHMAKING ALGORITHM
-   *  --------------------------------------------------------- */
+     MATCHMAKING ALGORITHM
+  --------------------------------------------------------- */
   // Pick `count` players from pool, prioritizing those with fewer games played.
   // Ties are broken randomly.
   function weightedPick(pool, count){
@@ -392,12 +400,13 @@
     return arr;
   }
 
+  function currentPriorityLevel(){
+    return (round % 2 === 1) ? 'Beginner' : 'Intermediate';
+  }
+
   // Returns { selected: [players...], shortfall: bool }
   function generateNextMatch(){
-    if(matchMode === 'mix'){
-      return generateMixMatch();
-    }
-    const priority = currentPriorityLevel(); // 'Beginner' or 'Intermediate', driven by matchMode
+    const priority = currentPriorityLevel();
     const pool = players.filter(p => p.present);
     const primary = pool.filter(p => p.level === priority);
     const secondary = pool.filter(p => p.level !== priority);
@@ -411,33 +420,9 @@
     return { selected, priority, shortfall: selected.length < 4 };
   }
 
-  // Mix mode: pick 2 Beginner + 2 Intermediate players (each group weighted by lowest
-  // gamesPlayed first). If one group falls short of 2, fill the remainder from whichever
-  // present players haven't already been selected (weighted by lowest gamesPlayed).
-  function generateMixMatch(){
-    const pool = players.filter(p => p.present);
-    const beginners = pool.filter(p => p.level === 'Beginner');
-    const intermediates = pool.filter(p => p.level === 'Intermediate');
-
-    const selectedBeginners = weightedPick(beginners, 2);
-    const selectedIntermediates = weightedPick(intermediates, 2);
-    let selected = selectedBeginners.concat(selectedIntermediates);
-
-    let shortfall = false;
-    if(selected.length < 4){
-      shortfall = true;
-      const need = 4 - selected.length;
-      const usedIds = new Set(selected.map(p => p.id));
-      const remaining = pool.filter(p => !usedIds.has(p.id));
-      const fill = weightedPick(remaining, need);
-      selected = selected.concat(fill);
-    }
-    return { selected, priority: 'Mix', shortfall };
-  }
-
   /* ---------------------------------------------------------
-   *     MATCH TAB RENDER / LOGIC
-   *  --------------------------------------------------------- */
+     MATCH TAB RENDER / LOGIC
+  --------------------------------------------------------- */
   const timerDisplay = document.getElementById('timerDisplay');
   const matchStateLabel = document.getElementById('matchStateLabel');
   const courtEmpty = document.getElementById('courtEmpty');
@@ -452,72 +437,6 @@
     matchStatusEl.innerHTML = msg ? '<div class="status-msg '+(type||'')+'">'+msg+'</div>' : '';
   }
 
-  /* ---------------------------------------------------------
-   *     PRIORITY MODE SELECTOR (Beginner / Intermediate / Mix)
-   *  --------------------------------------------------------- */
-  let matchMode = 'beginner'; // 'beginner' | 'intermediate' | 'mix'
-
-  const priorityModeWrap = document.createElement('div');
-  priorityModeWrap.id = 'priorityModeWrap';
-  priorityModeWrap.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;';
-  priorityModeWrap.innerHTML = `
-    <button type="button" class="mode-btn" data-mode="beginner">Beginner</button>
-    <button type="button" class="mode-btn" data-mode="intermediate">Intermediate</button>
-    <button type="button" class="mode-btn" data-mode="mix">Mix</button>
-  `;
-  btnStart.parentNode.insertBefore(priorityModeWrap, btnStart);
-
-  const modeBtnStyleEl = document.createElement('style');
-  modeBtnStyleEl.textContent = `
-    .mode-btn{padding:8px 16px;border-radius:8px;border:2px solid #d0d5dd;background:#fff;
-      font-weight:700;cursor:pointer;color:#344054;font-size:14px;}
-    .mode-btn.active{background:#2563eb;border-color:#2563eb;color:#fff;}
-  `;
-  document.head.appendChild(modeBtnStyleEl);
-
-  function setMatchMode(mode){
-    matchMode = mode;
-    priorityModeWrap.querySelectorAll('.mode-btn').forEach(b=>{
-      b.classList.toggle('active', b.dataset.mode === mode);
-    });
-    updatePriorityBanner();
-    // Selecting a mode loads/refreshes the match list on the court right away.
-    // Games only start counting once the Start button is actually pressed.
-    if(matchState === 'idle' || matchState === 'done'){
-      loadMatchPreview();
-    }
-  }
-
-  // Selects the next match's players (per the current mode) and shows them on the
-  // court WITHOUT starting the timer or incrementing anyone's gamesPlayed.
-  function loadMatchPreview(){
-    const pool = players.filter(p => p.present);
-    if(pool.length < 4){
-      currentMatchPlayers = [];
-      renderCourt();
-      setMatchStatus('');
-      return;
-    }
-    const { selected, priority, shortfall } = generateNextMatch();
-    currentMatchPlayers = selected.map(p => p.id);
-    renderCourt();
-    if(shortfall){
-      const msg = (priority === 'Mix')
-        ? 'Not enough players in one level to make an even 2/2 mix — filled remaining spots from the other level.'
-        : 'Not enough ' + priority.toLowerCase() + ' players present — filled remaining spots from other level.';
-      setMatchStatus(msg, '');
-    } else {
-      setMatchStatus('');
-    }
-  }
-
-  priorityModeWrap.querySelectorAll('.mode-btn').forEach(b=>{
-    b.addEventListener('click', () => {
-      if(matchState === 'running' || matchState === 'paused') return; // don't allow switching mid-match
-      setMatchMode(b.dataset.mode);
-    });
-  });
-
   function formatTime(sec){
     sec = Math.max(0, Math.round(sec));
     const m = Math.floor(sec/60);
@@ -531,11 +450,6 @@
     el.textContent = p;
     el.className = 'value ' + p.toLowerCase();
     document.getElementById('roundValue').textContent = round;
-  }
-
-  function currentPriorityLevel(){
-    if(matchMode === 'mix') return 'Mix';
-    return (matchMode === 'intermediate') ? 'Intermediate' : 'Beginner';
   }
 
   function renderTimer(){
@@ -561,8 +475,8 @@
       const p = players.find(x=>x.id===id);
       if(!p) return '';
       return `<div class="court-player">
-      <div class="pname">${escapeHtml(p.name)}</div>
-      <span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span>
+        <div class="pname">${escapeHtml(p.name)}</div>
+        <span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span>
       </div>`;
     }).join('');
   }
@@ -582,8 +496,6 @@
       timerInterval = null;
       matchState = 'done';
       matchStateLabel.textContent = "Time's up!";
-      round += 1;
-      updatePriorityBanner();
       if(navigator.vibrate) navigator.vibrate([200,100,200]);
       updateControlButtons();
     }
@@ -597,27 +509,19 @@
       return;
     }
     if(matchState === 'idle' || matchState === 'done'){
-      // A match is "loaded" onto the court already if a mode button was pressed
-      // (or a previous preview is still sitting there from idle). Coming from
-      // 'done' the court is showing the match that JUST finished, so always
-      // pull a fresh set of players for the next one.
-      if(matchState === 'done' || !currentMatchPlayers.length){
-        loadMatchPreview();
-      }
-      if(currentMatchPlayers.length < 4){
-        setMatchStatus('Need at least 4 present players to start a match.', 'error');
-        return;
-      }
-      // Games only count now that the match is actually starting.
-      currentMatchPlayers.forEach(id => {
-        const p = players.find(x => x.id === id);
-        if(p) p.gamesPlayed += 1;
-      });
-      const dur = Math.max(0.1, parseFloat(durationInput.value) || 10);
+      const { selected, priority, shortfall } = generateNextMatch();
+      currentMatchPlayers = selected.map(p=>p.id);
+      selected.forEach(p => p.gamesPlayed += 1);
+      const dur = Math.max(1, parseFloat(durationInput.value) || 10);
       timeRemaining = dur*60;
       matchState = 'running';
       matchStateLabel.textContent = 'In Progress';
       renderCourt();
+      if(shortfall){
+        setMatchStatus('Not enough ' + priority.toLowerCase() + ' players present — filled remaining spots from other level.', '');
+      } else {
+        setMatchStatus('');
+      }
       renderStats();
     } else if(matchState === 'paused'){
       matchState = 'running';
@@ -642,26 +546,28 @@
     timerInterval = null;
     matchState = 'idle';
     matchStateLabel.textContent = 'Ready';
+    currentMatchPlayers = [];
     round += 1;
-    const dur = Math.max(0.1, parseFloat(durationInput.value) || 10);
+    const dur = Math.max(1, parseFloat(durationInput.value) || 10);
     timeRemaining = dur*60;
     renderTimer();
+    renderCourt();
     updatePriorityBanner();
     updateControlButtons();
-    loadMatchPreview(); // show the next match's players right away (not started yet)
+    setMatchStatus('');
   });
 
   durationInput.addEventListener('change', () => {
     if(matchState === 'idle'){
-      const dur = Math.max(0.1, parseFloat(durationInput.value) || 10);
+      const dur = Math.max(1, parseFloat(durationInput.value) || 10);
       timeRemaining = dur*60;
       renderTimer();
     }
   });
 
   /* ---------------------------------------------------------
-   *     STATISTICS TAB
-   *  --------------------------------------------------------- */
+     STATISTICS TAB
+  --------------------------------------------------------- */
   let statSort = {key:'seq', dir:1};
 
   function renderStats(){
@@ -673,12 +579,12 @@
     const tbody = document.getElementById('statsTableBody');
     const empty = document.getElementById('statsEmptyState');
     tbody.innerHTML = '';
-
+    
     // --- CHANGE MADE HERE: Added .filter(p => p.present) ---
     let rows = players
-    .filter(p => p.present)
-    .map((p,i)=>({...p, seq:i+1}));
-
+      .filter(p => p.present)
+      .map((p,i)=>({...p, seq:i+1}));
+      
     if(!rows.length){ empty.style.display='block'; return; }
     empty.style.display='none';
 
@@ -693,19 +599,19 @@
     rows.forEach(p => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-      <td class="seq">${p.seq}</td>
-      <td>${escapeHtml(p.name)}</td>
-      <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
-      <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
-      <td style="text-align:right;font-weight:800;">${p.gamesPlayed}</td>
+        <td class="seq">${p.seq}</td>
+        <td>${escapeHtml(p.name)}</td>
+        <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
+        <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
+        <td style="text-align:right;font-weight:800;">${p.gamesPlayed}</td>
       `;
       tbody.appendChild(tr);
     });
   }
 
   /* ---------------------------------------------------------
-   *     TABS
-   *  --------------------------------------------------------- */
+     TABS
+  --------------------------------------------------------- */
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -717,8 +623,8 @@
   });
 
   /* ---------------------------------------------------------
-   *     INIT
-   *  --------------------------------------------------------- */
+     INIT
+  --------------------------------------------------------- */
   function renderAll(){
     renderPlayerTable(null);
     renderStats();
@@ -728,12 +634,11 @@
   const fileHelperEl = document.getElementById('fileHelper');
   if(fileHelperEl){
     fileHelperEl.textContent =
-    'Load pulls the player list from GitHub, and Save writes it back using token authentication (configured in GITHUB_CONFIG at the top of the script).';
+      'Load pulls the player list from GitHub, and Save writes it back using token authentication (configured in GITHUB_CONFIG at the top of the script).';
   }
 
   timeRemaining = (parseFloat(durationInput.value)||10)*60;
   renderTimer();
   updateControlButtons();
-  setMatchMode('beginner');
   renderAll();
 })();
