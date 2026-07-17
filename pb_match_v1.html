@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>PB Match — Pickleball Match Manager</title>
+<link rel="stylesheet" href="pb_match_v1.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="ball-dot"></div>
+  <h1>PickleBall Match</h1>
+  <div class="sub">Hope Church PB</div>
+</div>
+
+<main>
+
+  <!-- SETUP TAB -->
+  <section class="tab-panel active" id="tab-setup">
+    <div class="card">
+      <h2>Game Settings</h2>
+      <div class="row">
+        <div class="field">
+          <label>Game Duration (minutes)</label>
+          <input type="number" id="durationInput" value="10" min="1" max="60">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Player File</h2>
+      <div class="row">
+        <button class="btn-primary" id="btnLoadCsv" style="flex:1">Load list</button>
+        <button class="btn-secondary" id="btnSaveCsv" style="flex:1">Save List</button>
+      </div>
+      <input type="file" id="fileInputFallback" accept=".csv" style="display:none">
+      <div id="fileStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>Add Player</h2>
+      <div class="row">
+        <div class="field" style="flex:2;min-width:140px;">
+          <label>Name</label>
+          <input type="text" id="newName" placeholder="Player name">
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="newType">
+            <option>HCA</option>
+            <option>Visitor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Level</label>
+          <select id="newLevel">
+            <option>Beginner</option>
+            <option>Intermediate</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn-primary" id="btnAddPlayer" style="width:100%;">Add Player</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Players (<span id="playerCount">0</span>)</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th class="seq">#</th>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Level</th>
+              <th style="text-align:center;">Here</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="playerTableBody"></tbody>
+        </table>
+        <div class="empty-state" id="playerEmptyState">No players yet. Load a CSV or add players above.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MATCH TAB -->
+  <section class="tab-panel" id="tab-match">
+
+    <div class="priority-banner">
+      <div>
+        <div class="label">Next Match Priority</div>
+        <div class="value" id="priorityValue">Beginner</div>
+      </div>
+      <div style="text-align:right">
+        <div class="label">Round</div>
+        <div class="value" id="roundValue" style="color:var(--text);">1</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="timer-wrap">
+        <div class="timer" id="timerDisplay">10:00</div>
+        <div class="match-state-label" id="matchStateLabel">Ready</div>
+      </div>
+
+      <div class="court" id="courtWrap">
+        <div class="court-empty" id="courtEmpty">Press Start to set the first match</div>
+        <div class="court-players" id="courtPlayers" style="display:none;"></div>
+      </div>
+
+      <div class="control-row">
+        <button class="btn-primary" id="btnStart">Start</button>
+        <button class="btn-warn" id="btnPause">Pause</button>
+        <button class="btn-danger" id="btnStop">Stop</button>
+      </div>
+      <div id="matchStatus"></div>
+    </div>
+  </section>
+
+  <!-- STATISTICS TAB -->
+  <section class="tab-panel" id="tab-stats">
+    <div class="stat-summary">
+      <div class="stat-box"><div class="num" id="statTotalPlayers">0</div><div class="lbl">Players</div></div>
+      <div class="stat-box"><div class="num" id="statTotalGames">0</div><div class="lbl">Matches Played</div></div>
+      <div class="stat-box"><div class="num" id="statPresent">0</div><div class="lbl">Present Today</div></div>
+    </div>
+    <div class="card">
+      <h2>Games Played</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="seq" class="seq">#</th>
+              <th data-sort="name">Name</th>
+              <!--  <th data-sort="type">Type</th>
+              <th data-sort="level">Level</th> -->
+              <th data-sort="games" style="text-align:right;">Games</th>
+            </tr>
+          </thead>
+          <tbody id="statsTableBody"></tbody>
+        </table>
+        <div class="empty-state" id="statsEmptyState">No players yet.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="tabbar">
+    <button class="tab-btn" data-tab="tab-match">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    Match
+  </button>
+  <button class="tab-btn active" data-tab="tab-setup">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg>
+    Setup
+  </button>
+  <button class="tab-btn" data-tab="tab-stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
+    Statistics
+  </button>
+</div>
+
+<div id="modalRoot"></div>
+<script src="pb_match_v1.js"></script>
+</body>
+</html>
