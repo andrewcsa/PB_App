@@ -715,8 +715,8 @@
         tr.innerHTML = `
         <td class="seq">${p.seq}</td>
         <td>${escapeHtml(p.name)}</td>
-        <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
-        <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
+        // <td><span class="pill ${p.type==='Visitor'?'pill-visitor':'pill-hope'}">${p.type==='Visitor'?'Visitor':'HCA'}</span></td>
+        // <td><span class="pill ${p.level==='Intermediate'?'pill-intermediate':'pill-beginner'}">${p.level}</span></td>
         <td style="text-align:right;font-weight:800;">${p.gamesPlayed}</td>
         `;
         tbody.appendChild(tr);
